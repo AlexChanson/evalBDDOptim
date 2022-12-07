@@ -1,20 +1,32 @@
 import os
 from subprocess import PIPE, Popen
+import platform
 
-
-pg_path = "/usr/bin/"
+IS_WIN = "windows" in platform.system().lower()
 env_vars = dict(os.environ)
 env_vars['PGPASSFILE'] = './.pgpass'
 
+if IS_WIN:
+    pg_path = env_vars['UTFR_APPS_ROOT'] + "\\pgsql\\14.5-1\\bin\\psql.exe"
+    print(pg_path)
+    dbUser = "projet2022"
+else :
+    pg_path = "/usr/bin/psql"
+    dbUser = "marcel"
+
+
+
 # exec student optimizations
-
-
-# Analyse
-with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-f', "./workload/analyse.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
+with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', "./workload/student_setup.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
     output = process.communicate()[0].decode("utf-8")
     print(output)
 
-with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-f', './workload/queries.txt'],
+# Analyse
+with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', "./workload/analyse.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
+    output = process.communicate()[0].decode("utf-8")
+    print(output)
+
+with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', './workload/queries.txt'],
            env=env_vars, stdout=PIPE, stderr=PIPE) as process:
     output = process.communicate()[0].decode("utf-8")
     cost = 0
@@ -34,7 +46,7 @@ with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching
 print('overal cost: ', cost)
 
 # computing size
-with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-c', "SELECT pg_size_pretty( pg_database_size('teaching') );"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
+with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-c', "SELECT pg_size_pretty( pg_database_size('teaching') );"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
     output = process.communicate()[0].decode("utf-8")
     print("Size:", output.splitlines()[2])
 

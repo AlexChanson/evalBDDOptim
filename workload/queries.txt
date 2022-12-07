@@ -1,0 +1,72 @@
+-- Q1
+explain select "StateCode", count(distinct ("IssuerId")) as num_issuer
+     , count(distinct ("ServiceAreaId"))   as num_service
+     , count(distinct ("ServiceAreaName")) as num_servicename
+from "ServiceArea"
+group by "StateCode"
+order by "StateCode";
+
+-- Q2
+explain SELECT DISTINCT("PlanId")
+FROM "Rate"
+WHERE "BusinessYear" = 2016
+  AND "StateCode" = 'WY'
+  AND "PlanId" NOT IN ('47731WY0030002', '47731WY0030001', '47731WY0020002', '47731WY0020001')
+;
+
+-- Q3
+explain SELECT "PlanId", "PlanType", "BenefitPackageId"
+FROM "PlanAttributes"
+WHERE substr("PlanAttributes"."PlanId", 1, 14) IN
+      (SELECT DISTINCT("Rate"."PlanId")
+       FROM "Rate"
+       WHERE "Rate"."BusinessYear" = 2014
+         AND "Rate"."StateCode" = 'WY'
+         AND "Rate"."PlanId" NOT IN ('47731WY0030002', '47731WY0030001', '47731WY0020002', '47731WY0020001'));
+
+--Q4
+explain select "StateCode",
+    SUM(CASE WHEN "BusinessYear" = 2014 THEN rate_ave END) as "2014",
+    SUM(CASE WHEN "BusinessYear" = 2015 THEN rate_ave END) as "2015",
+    SUM(CASE WHEN "BusinessYear" = 2016 THEN rate_ave END) as "2016"
+from (select "StateCode", "BusinessYear", avg("IndividualRate") as rate_ave
+      from "Rate"
+      WHERE "IndividualRate" != 999999
+      group by "BusinessYear", "StateCode") X
+group by "StateCode";
+
+--Q5
+explain select "Rate"."StateCode", "Rate"."BusinessYear", avg("IndividualRate") as medicine_rate
+from "Rate"
+         inner join "PlanAttributes" on "Rate"."PlanId" = substr("PlanAttributes"."PlanId", 1, 14)
+where "PlanAttributes"."DentalOnlyPlan" = 'Yes'
+group by "Rate"."StateCode", "Rate"."BusinessYear"
+order by "Rate"."StateCode";
+
+--Q6
+explain select "Rate"."PlanId", "Rate"."IndividualRate" as dental_rate
+from "Rate"
+          inner join "PlanAttributes" on "Rate"."PlanId" = substr("PlanAttributes"."PlanId", 1, 14)
+where "PlanAttributes"."StateCode" = 'WY'
+  and "PlanAttributes"."DentalOnlyPlan" = 'Yes'
+group by "Rate"."PlanId",  "Rate"."IndividualRate"
+ORDER BY "Rate"."IndividualRate" desc;
+
+--Q7
+explain select "BusinessYear", "StateCode", avg("IndividualRate") as rate_ave
+from "Rate"
+group by "BusinessYear", "StateCode"
+order by rate_ave desc;
+
+--Q8
+explain select "PlanID_2015" from "Crosswalk2015"
+where "PlanID_2015" not in (select "PlanID_2015" from "Crosswalk2016")
+and "PlanID_2015" in (select distinct "PlanId" from "Rate");
+
+-- Q9
+explain select "PlanId", "StateCode", "BusinessYear",
+                      COUNT("IsStateMandate") as NonMandateCount,
+                      COUNT("IsCovered") as CoveredCount from "BenefitsCostSharing"
+                      WHERE ("IsStateMandate" != 'Yes'
+                      AND "IsCovered" = 'Covered') OR ("IsCovered" = 'Covered')
+                     GROUP BY "PlanId", "StateCode", "BusinessYear";

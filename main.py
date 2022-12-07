@@ -3,11 +3,19 @@ from subprocess import PIPE, Popen
 
 
 pg_path = "/usr/bin/"
-queries = './workload/queries.txt'
 env_vars = dict(os.environ)
 env_vars['PGPASSFILE'] = './.pgpass'
 
-with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-f', queries], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
+# exec student optimizations
+
+
+# Analyse
+with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-f', "./workload/analyse.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
+    output = process.communicate()[0].decode("utf-8")
+    print(output)
+
+with Popen([pg_path + "psql", "-h", "localhost", "-U", "marcel", "-d", 'teaching', '-f', './workload/queries.txt'],
+           env=env_vars, stdout=PIPE, stderr=PIPE) as process:
     output = process.communicate()[0].decode("utf-8")
     cost = 0
     j = 1

@@ -1,54 +1,49 @@
 import os
 from subprocess import PIPE, Popen
 import platform
+from time import sleep
 
-IS_WIN = "windows" in platform.system().lower()
-env_vars = dict(os.environ)
-env_vars['PGPASSFILE'] = './.pgpass'
+import utilities
+from random import shuffle as randomizeWorkload
+import psycopg2
+import docker
 
-if IS_WIN:
-    pg_path = env_vars['UTFR_APPS_ROOT'] + "\\pgsql\\14.5-1\\bin\\psql.exe"
-    print(pg_path)
-    dbUser = "projet2022"
-else :
-    pg_path = "/usr/bin/psql"
-    dbUser = "marcel"
+PG_PORT = 35432
+PG_ADDRESS = "localhost"
 
 
+if __name__ == '__main__':
+    # load queries in memory
+    queries = utilities.loadWorkload()
+    print(queries)
 
-# exec student optimizations
-with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', "./workload/student_setup.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
-    output = process.communicate()[0].decode("utf-8")
-    print(output)
+    # Connect to the local docker daemon
+    dd = docker.from_env()
+    container = dd.containers.run("postgres:14", name="evalOptimBDD", ports={"5432":PG_PORT},
+                                  environment=["POSTGRES_PASSWORD=mysecretpassword","POSTGRES_USER=dbUser"],
+                                  detach=True)
+    sleep(2)
+    print("[DOCKER] Postgres instance is up and running")
 
-# Analyse
-with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', "./workload/analyse.txt"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
-    output = process.communicate()[0].decode("utf-8")
-    print(output)
+    # establish database connection
+    connection_params = {
+         'dbname': 'dbUser',
+         'user': 'dbUser',
+         'password': 'mysecretpassword',
+         'host': PG_ADDRESS,
+         'port': PG_PORT
+    }
+    connection_ok = False
+    while not connection_ok:
+        try:
+            connection = psycopg2.connect(**connection_params)
+            connection_ok = True
+        except Exception as e:
+            print(f"Error connecting to PostgreSQL: {e}")
+            sleep(5)
 
-with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-f', './workload/queries.txt'],
-           env=env_vars, stdout=PIPE, stderr=PIPE) as process:
-    output = process.communicate()[0].decode("utf-8")
-    cost = 0
-    j = 1
-    fetch = False
-    for line in output.splitlines():
-        if line.startswith('-----'):
-            fetch = True
-            continue
-        if fetch:
-            fetch = False
-            t = line.split('..')
-            print('query ', j, ' : ', t[1].split()[0])
-            j = j + 1
-            cost = cost + float(t[1].split()[0])
+    print(utilities.run_explain_analyze("SELECT version();", connection))
 
-print('overal cost: ', cost)
-
-# computing size
-with Popen([pg_path, "-h", "localhost", "-U", dbUser, "-d", 'teaching', '-c', "SELECT pg_size_pretty( pg_database_size('teaching') );"], env=env_vars, stdout=PIPE, stderr=PIPE) as process:
-    output = process.communicate()[0].decode("utf-8")
-    print("Size:", output.splitlines()[2])
-
-# cleaning up
-# os.system("/Applications/Postgres.app/Contents/Versions/11/bin/psql -d 'health insurance' -f /Users/marcel/Documents/ENSEIGNEMENTS/BD/DATASETS/health_insurance/health_insurance.sql")
+    # we are done cleanup
+    container.stop()
+    container.remove()

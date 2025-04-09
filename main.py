@@ -13,6 +13,7 @@ PG_PORT = 35432
 PG_ADDRESS = "localhost"
 RUN_ANALYZE = True
 RUN_SOLUTION = True
+GET_DBSIZE= True
 
 
 if __name__ == '__main__':
@@ -75,6 +76,31 @@ if __name__ == '__main__':
             print("[PGSQL] running:", statement)
             utilities.run_optimisation(statement, connection)
 
+
+    # get DB size
+    if GET_DBSIZE:
+        dbsize=utilities.get_dbsize(connection)
+
+    print('[INFO] database size: ',dbsize)
+
+    # run explain analyze
+    overalcost = 0
+    for q in queries:
+        result= utilities.run_explain_analyze(q, connection)
+
+        fetch = False
+        for line in result.splitlines():
+            if line.startswith('-----'):
+                fetch = True
+                continue
+            if fetch:
+                fetch = False
+                t = line.split('..')
+                cost = t[1].split()[0]
+                print('[INFO] query ', q, ' : ', cost)
+                overalcost = overalcost + float(cost)
+
+    print('[INFO] overal cost: ',overalcost)
 
     # we are done cleanup
     container.stop()

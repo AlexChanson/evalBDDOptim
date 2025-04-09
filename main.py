@@ -12,12 +12,14 @@ import docker
 PG_PORT = 35432
 PG_ADDRESS = "localhost"
 RUN_ANALYZE = True
+RUN_SOLUTION = True
 
 
 if __name__ == '__main__':
     # load queries in memory
     queries = utilities.loadWorkload("workload/queries.txt")
     tables = utilities.loadWorkload("workload/create.txt")
+    solution = utilities.loadWorkload("workload/student_setup.txt")
     table_names = [utilities.extract_table_name(t).lstrip("public.") for t in tables]
     print(len(tables), 'tables to create :', table_names)
     print(len(queries), 'queries to run.')
@@ -65,6 +67,13 @@ if __name__ == '__main__':
             utilities.analyze_table(table, connection)
 
     print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
+
+    # run proposed optimization strategy
+    if RUN_SOLUTION:
+        for statement in solution:
+            print("[PGSQL] running:", statement)
+            utilities.run_optimisation(statement, connection)
+
 
     # we are done cleanup
     container.stop()

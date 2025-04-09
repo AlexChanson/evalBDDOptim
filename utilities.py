@@ -30,6 +30,18 @@ def run_create(query, connection):
         print(f"Error running CREATE: {e}")
         return None
 
+
+def run_optimisation(query, connection):
+    try:
+        with connection.cursor() as cur:
+            result = cur.execute(query)
+            connection.commit()
+            return result
+    except Exception as e:
+        print(f"Error running student optimization: {e}")
+        return None
+
+
 import re
 
 def extract_table_name(create_table_sql):

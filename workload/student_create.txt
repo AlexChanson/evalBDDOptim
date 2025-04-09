@@ -1,0 +1,56 @@
+
+create table public.h25_messages
+(
+id integer not null,
+message_id text,
+campaign_id integer,
+message_type text,
+client_id numeric,
+channel text,
+category text,
+platform text,
+email_provider text,
+stream text,
+"date" date,
+sent_at timestamp,
+is_opened text,
+opened_first_time_at timestamp,
+opened_last_time_at timestamp,
+is_clicked text,
+clicked_first_time_at timestamp,
+clicked_last_time_at timestamp,
+is_unsubscribed text,
+unsubscribed_at timestamp,
+is_hard_bounced text,
+hard_bounced_at timestamp,
+is_soft_bounced text,
+soft_bounced_at timestamp,
+is_complained text,
+complained_at timestamp,
+is_blocked text,
+blocked_at timestamp,
+is_purchased text,
+purchased_at timestamp,
+created_at timestamp,
+updated_at timestamp
+) PARTITION BY LIST(is_purchased);
+
+
+
+CREATE TABLE messages_purchased PARTITION OF h25_messages
+    FOR VALUES in ('t') PARTITION BY LIST(email_provider);
+
+CREATE TABLE messages_not_purchased PARTITION OF h25_messages
+    DEFAULT PARTITION BY LIST(email_provider);
+
+CREATE TABLE messages_purchased_ru PARTITION OF messages_purchased
+    FOR VALUES in ('mail.ru');
+
+CREATE TABLE messages_not_purchased_ru PARTITION OF messages_not_purchased
+    FOR VALUES in ('mail.ru');
+
+CREATE TABLE messages_purchased_not_ru PARTITION OF messages_purchased
+    DEFAULT;
+
+CREATE TABLE messages_not_purchased_not_ru PARTITION OF messages_not_purchased
+    DEFAULT;

@@ -9,24 +9,27 @@ from random import shuffle as randomizeWorkload
 import psycopg2
 import docker
 
+PG_VERSION = "14"
 PG_PORT = 35432
 PG_ADDRESS = "localhost"
 RUN_ANALYZE = True
 RUN_SOLUTION = True
-
+WORKLOAD_RUNS = 5
 
 if __name__ == '__main__':
     # load queries in memory
     queries = utilities.loadWorkload("workload/queries.txt")
     tables = utilities.loadWorkload("workload/create.txt")
     solution = utilities.loadWorkload("workload/student_setup.txt")
+    solution_partition = utilities.loadWorkload("workload/student_create.txt")
     table_names = [utilities.extract_table_name(t).lstrip("public.") for t in tables]
+    student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
     print(len(tables), 'tables to create :', table_names)
     print(len(queries), 'queries to run.')
 
     # Connect to the local docker daemon
     dd = docker.from_env()
-    container = dd.containers.run("postgres:14", "-c random_page_cost=1.4 -c jit=off",name="evalOptimBDD", ports={"5432":PG_PORT},
+    container = dd.containers.run("postgres:"+PG_VERSION, "-c random_page_cost=1.4 -c jit=off",name="evalOptimBDD", ports={"5432":PG_PORT},
                                   environment=["POSTGRES_PASSWORD=mysecretpassword","POSTGRES_USER=dbUser"],
                                    detach=True) #volumes=['tp_bdd_optim_data:/to_import']
     sleep(2)
@@ -50,8 +53,14 @@ if __name__ == '__main__':
             sleep(5)
 
     # create tables
-    for query in tables:
-        res = utilities.run_create(query, connection)
+    #       student's
+    for q in solution_partition :
+        utilities.run_create(q, connection)
+    #       default
+    for i in range(len(tables)):
+        query = tables[i]
+        if table_names[i] not in student_table_names:
+            res = utilities.run_create(query, connection)
     print("[PGSQL] tables created")
 
     # import data
@@ -82,16 +91,20 @@ if __name__ == '__main__':
 
     # run explain analyze
     overalcost = 0
-    for q in queries:
-        result= utilities.run_explain_analyze(q, connection)
-        match = re.search(r'cost=\d+\.\d+\.\.(\d+\.\d+)', result[0][0])
-        if match:
-            cost = float(match.group(1))
-            overalcost = overalcost + cost
-        else:
-            print("[Workload] error getting query cost")
 
-    print('[INFO] overal cost: ',overalcost)
+    for i in range(WORKLOAD_RUNS):
+        print("[INFO] RUN", i+1, "out of", WORKLOAD_RUNS)
+        randomizeWorkload(queries)
+        for q in queries:
+            result= utilities.run_explain_analyze(q, connection)
+            match = re.search(r'cost=\d+\.\d+\.\.(\d+\.\d+)', result[0][0])
+            if match:
+                cost = float(match.group(1))
+                overalcost = overalcost + cost
+            else:
+                print("[Workload] error getting query cost")
+
+    print('[INFO] overal cost: ', overalcost/float(WORKLOAD_RUNS))
 
     # we are done cleanup
     container.stop()

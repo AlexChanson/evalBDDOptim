@@ -1,9 +1,10 @@
+import sqlglot
 
 def loadWorkload(path):
     data = ""
     with open(path) as f:
         for line in f:
-            if line.startswith("--"):
+            if line.startswith("--") or line.startswith("#"):
                 pass
             else:
                 data += " " + line.strip()
@@ -138,7 +139,7 @@ def split_sql_statements(sql_script: str):
 
     for line in lines:
         stripped = line.strip()
-        if not stripped or stripped.startswith('--'):
+        if not stripped or stripped.startswith('--') or stripped.startswith('#'):
             continue  # skip empty lines and comments
 
         # Detect start of DO block
@@ -161,3 +162,15 @@ def split_sql_statements(sql_script: str):
         statements.append('\n'.join(buffer).strip())
 
     return statements
+
+def is_valid_postgres_sql(statement: str) -> bool:
+    # doesn't seem to handle cluster properly
+    if statement.lower().lstrip().startswith("cluster"):
+        return True
+    try:
+        # Use PostgreSQL dialect
+        sqlglot.parse_one(statement, read='postgres')
+        return True
+    except sqlglot.errors.ParseError as e:
+        print(f"Invalid SQL: {e}")
+        return False

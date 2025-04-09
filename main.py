@@ -15,6 +15,7 @@ PG_ADDRESS = "localhost"
 RUN_ANALYZE = True
 RUN_SOLUTION = True
 WORKLOAD_RUNS = 5
+VALIDATE_STATEMENTS = True
 
 if __name__ == '__main__':
     # load queries in memory
@@ -26,6 +27,14 @@ if __name__ == '__main__':
     student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
     print(len(tables), 'tables to create :', table_names)
     print(len(queries), 'queries to run.')
+
+    if VALIDATE_STATEMENTS:
+        for st in solution:
+            if utilities.is_valid_postgres_sql(st):
+                pass
+            else:
+                print("INVALID SQL ? :", st)
+                exit(0)
 
     # Connect to the local docker daemon
     dd = docker.from_env()

@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     # Connect to the local docker daemon
     dd = docker.from_env()
-    container = dd.containers.run("postgres:14", name="evalOptimBDD", ports={"5432":PG_PORT},
+    container = dd.containers.run("postgres:14", "-c random_page_cost=1.4 -c jit=off",name="evalOptimBDD", ports={"5432":PG_PORT},
                                   environment=["POSTGRES_PASSWORD=mysecretpassword","POSTGRES_USER=dbUser"],
                                    detach=True) #volumes=['tp_bdd_optim_data:/to_import']
     sleep(2)
@@ -65,6 +65,7 @@ if __name__ == '__main__':
             utilities.analyze_table(table, connection)
 
     print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
+    print(utilities.run_arbitrary("show jit;", connection))
 
     # we are done cleanup
     container.stop()

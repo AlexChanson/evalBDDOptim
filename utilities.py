@@ -1,4 +1,7 @@
 import sqlglot
+import zipfile
+import os
+import re
 
 def loadWorkload(path):
     data = ""
@@ -52,7 +55,7 @@ def get_dbsize(dbname, connection):
         print(f"Error getting DB size: {e}")
         return None
 
-import re
+
 
 def extract_table_name(create_table_sql):
     """
@@ -174,3 +177,77 @@ def is_valid_postgres_sql(statement: str) -> bool:
     except sqlglot.errors.ParseError as e:
         print(f"Invalid SQL: {e}")
         return False
+
+
+
+def explore_folder(root_path):
+    # Make sure it's an absolute Unix-style path
+    root_path = os.path.abspath(root_path)
+
+    results = []
+
+    for entry in os.scandir(root_path):
+        if entry.is_dir():
+            subfolder_name = entry.name
+            subfolder_path = entry.path
+
+            # Step 1: Get substring before '_'
+            if '_' in subfolder_name:
+                prefix = subfolder_name.split('_')[0]
+            else:
+                prefix = subfolder_name  # fallback if no '_'
+
+            # Step 2: Get paths of 2 files in the subfolder
+            files = [os.path.join(subfolder_path, f) for f in os.listdir(subfolder_path)
+                     if os.path.isfile(os.path.join(subfolder_path, f))]
+
+            if len(files) == 2:
+                file1_path, file2_path = files
+                results.append((prefix, file1_path, file2_path))
+            else:
+                print(f"Skipping '{subfolder_name}' - found {len(files)} files instead of 2")
+
+    return results
+
+
+
+def unzip_and_get_subfolder(zip_path):
+    # Ensure the zip_path is absolute
+    zip_path = os.path.abspath(zip_path)
+
+    # Determine the extraction directory (same as zip file, no extension)
+    extract_dir = zip_path.rstrip(".zip")
+
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+
+    # Get list of directories in the extracted location
+    subdirs = [os.path.join(extract_dir, name) for name in os.listdir(extract_dir)
+               if os.path.isdir(os.path.join(extract_dir, name))]
+
+    if len(subdirs) == 1:
+        return subdirs[0]
+    elif len(subdirs) == 0:
+        raise ValueError(f"No subfolders found in extracted zip at {extract_dir}")
+    else:
+        raise ValueError(f"Multiple subfolders found in extracted zip at {extract_dir}: {subdirs}")
+
+
+# Example usage
+if __name__ == "__main__":
+    zip_file_path = "/path/to/your/file.zip"  # Replace with your zip path
+    try:
+        subfolder_path = unzip_and_get_subfolder(zip_file_path)
+        print(f"Extracted subfolder path: {subfolder_path}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+# Example usage:
+if __name__ == "__main__":
+    folder_path = "/path/to/your/folder"  # Replace with your actual path
+    data = explore_folder(folder_path)
+    for prefix, file1, file2 in data:
+        print(f"Prefix: {prefix}")
+        print(f"File 1: {file1}")
+        print(f"File 2: {file2}")
+        print("------")

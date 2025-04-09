@@ -110,3 +110,11 @@ def analyze_table(table_name, connection):
             print(f"Successfully analyzed '{table_name}'.")
     except Exception as e:
         print(f"Analysis error fo '{table_name}': {e}")
+
+def run_arbitrary(sql, connection):
+    try:
+        with connection.cursor() as cur:
+            cur.execute(sql)
+            return cur.fetchall()
+    except Exception as e:
+        print(f"Error running query: {e}")

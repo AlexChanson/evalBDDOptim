@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # load queries in memory
     queries = utilities.loadWorkload("workload/queries.txt")
     tables = utilities.loadWorkload("workload/create.txt")
-    solution = utilities.loadWorkload("workload/student_setup.txt")
+    solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
     solution_partition = utilities.loadWorkload("workload/student_create.txt")
     table_names = [utilities.extract_table_name(t).lstrip("public.") for t in tables]
     student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]

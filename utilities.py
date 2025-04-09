@@ -127,3 +127,37 @@ def run_arbitrary(sql, connection):
             return cur.fetchall()
     except Exception as e:
         print(f"Error running query: {e}")
+
+
+def split_sql_statements(sql_script: str):
+    statements = []
+    buffer = []
+    in_do_block = False
+
+    lines = sql_script.splitlines()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith('--'):
+            continue  # skip empty lines and comments
+
+        # Detect start of DO block
+        if stripped.startswith('DO $$'):
+            in_do_block = True
+
+        buffer.append(line)
+
+        # Detect end of DO block
+        if in_do_block and re.match(r'END\s*\$\$;?\s*$', stripped, re.IGNORECASE):
+            statements.append('\n'.join(buffer).strip())
+            buffer = []
+            in_do_block = False
+        elif not in_do_block and stripped.endswith(';'):
+            statements.append('\n'.join(buffer).strip())
+            buffer = []
+
+    # Catch any trailing statements not properly closed
+    if buffer:
+        statements.append('\n'.join(buffer).strip())
+
+    return statements

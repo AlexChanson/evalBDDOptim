@@ -11,7 +11,7 @@ import docker
 
 PG_PORT = 35432
 PG_ADDRESS = "localhost"
-DATA_VOLUME = "tp_bdd_optim_data"
+RUN_ANALYZE = True
 
 
 if __name__ == '__main__':
@@ -57,6 +57,12 @@ if __name__ == '__main__':
     for table in table_names:
         print("[PGSQL] loading", table)
         utilities.import_csv_to_table(table, "./data/"+table+".csv", connection, delimiter=',', header=header)
+
+    # run analyze if allowed
+    if RUN_ANALYZE:
+        for table in table_names:
+            print("[PGSQL] analyze table:", table)
+            utilities.analyze_table(table, connection)
 
     print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
 

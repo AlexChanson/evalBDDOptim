@@ -88,4 +88,13 @@ def import_csv_to_table(table_name, csv_file_path, connection, delimiter=',', he
     except Exception as e:
         print(f"Error importing data into table '{table_name}': {e}")
 
-
+def analyze_table(table_name, connection):
+    try:
+        with connection.cursor() as cur:
+            sql = f"""
+            ANALYZE {table_name};
+            """
+            cur.execute(sql)
+            print(f"Successfully analyzed '{table_name}'.")
+    except Exception as e:
+        print(f"Analysis error fo '{table_name}': {e}")

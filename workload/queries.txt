@@ -1,72 +1,143 @@
--- Q1
-explain select "StateCode", count(distinct ("IssuerId")) as num_issuer
-     , count(distinct ("ServiceAreaId"))   as num_service
-     , count(distinct ("ServiceAreaName")) as num_servicename
-from "ServiceArea"
-group by "StateCode"
-order by "StateCode";
+-- \subsection*{Q1}
 
--- Q2
-explain SELECT DISTINCT("PlanId")
-FROM "Rate"
-WHERE "BusinessYear" = 2016
-  AND "StateCode" = 'WY'
-  AND "PlanId" NOT IN ('47731WY0030002', '47731WY0030001', '47731WY0020002', '47731WY0020001')
-;
+SELECT is_opened, avg(subject_length) as NB
+from h25_messages, h25_campaigns
+WHERE campaign_id = h25_campaigns.id
+AND campaign_type = message_type
+GROUP BY is_opened;
 
--- Q3
-explain SELECT "PlanId", "PlanType", "BenefitPackageId"
-FROM "PlanAttributes"
-WHERE substr("PlanAttributes"."PlanId", 1, 14) IN
-      (SELECT DISTINCT("Rate"."PlanId")
-       FROM "Rate"
-       WHERE "Rate"."BusinessYear" = 2014
-         AND "Rate"."StateCode" = 'WY'
-         AND "Rate"."PlanId" NOT IN ('47731WY0030002', '47731WY0030001', '47731WY0020002', '47731WY0020001'));
 
---Q4
-explain select "StateCode",
-    SUM(CASE WHEN "BusinessYear" = 2014 THEN rate_ave END) as "2014",
-    SUM(CASE WHEN "BusinessYear" = 2015 THEN rate_ave END) as "2015",
-    SUM(CASE WHEN "BusinessYear" = 2016 THEN rate_ave END) as "2016"
-from (select "StateCode", "BusinessYear", avg("IndividualRate") as rate_ave
-      from "Rate"
-      WHERE "IndividualRate" != 999999
-      group by "BusinessYear", "StateCode") X
-group by "StateCode";
+-- \subsection*{Q2}
 
---Q5
-explain select "Rate"."StateCode", "Rate"."BusinessYear", avg("IndividualRate") as medicine_rate
-from "Rate"
-         inner join "PlanAttributes" on "Rate"."PlanId" = substr("PlanAttributes"."PlanId", 1, 14)
-where "PlanAttributes"."DentalOnlyPlan" = 'Yes'
-group by "Rate"."StateCode", "Rate"."BusinessYear"
-order by "Rate"."StateCode";
+SELECT is_opened, count(1) as NB
+from h25_messages, h25_campaigns
+WHERE campaign_id = h25_campaigns.id
+and campaign_type = message_type and email_provider = 'mail.ru'
+GROUP BY is_opened;
 
---Q6
-explain select "Rate"."PlanId", "Rate"."IndividualRate" as dental_rate
-from "Rate"
-          inner join "PlanAttributes" on "Rate"."PlanId" = substr("PlanAttributes"."PlanId", 1, 14)
-where "PlanAttributes"."StateCode" = 'WY'
-  and "PlanAttributes"."DentalOnlyPlan" = 'Yes'
-group by "Rate"."PlanId",  "Rate"."IndividualRate"
-ORDER BY "Rate"."IndividualRate" desc;
 
---Q7
-explain select "BusinessYear", "StateCode", avg("IndividualRate") as rate_ave
-from "Rate"
-group by "BusinessYear", "StateCode"
-order by rate_ave desc;
 
---Q8
-explain select "PlanID_2015" from "Crosswalk2015"
-where "PlanID_2015" not in (select "PlanID_2015" from "Crosswalk2016")
-and "PlanID_2015" in (select distinct "PlanId" from "Rate");
+-- \subsection*{Q3}
 
--- Q9
-explain select "PlanId", "StateCode", "BusinessYear",
-                      COUNT("IsStateMandate") as NonMandateCount,
-                      COUNT("IsCovered") as CoveredCount from "BenefitsCostSharing"
-                      WHERE ("IsStateMandate" != 'Yes'
-                      AND "IsCovered" = 'Covered') OR ("IsCovered" = 'Covered')
-                     GROUP BY "PlanId", "StateCode", "BusinessYear";
+select is_opened, is_clicked, count(1)
+from h25_messages
+where campaign_id = 27
+  and email_provider != 'mail.ru'
+group by is_opened, is_clicked;
+
+
+-- \subsection*{Q4}
+
+SELECT message_type, count(message_id)
+from h25_messages, h25_campaigns
+WHERE campaign_id = h25_campaigns.id
+and campaign_type = message_type
+AND sent_at > '2021-06-02'::date
+GROUP BY message_type ;
+
+
+-- \subsection*{Q5}
+
+SELECT message_type, is_clicked, count(message_id)
+from h25_messages, h25_campaigns
+WHERE campaign_id = h25_campaigns.id
+and campaign_type = message_type
+AND sent_at > '2021-06-02'::date and email_provider != 'mail.ru'
+GROUP BY message_type, is_clicked ;
+
+
+
+-- \subsection*{Q6}
+
+SELECT count(distinct m1.client_id)
+from h25_messages m1, h25_messages m2
+WHERE m1.client_id = m2.client_id and m1.id != m2.id
+and m1.email_provider = 'mail.ru'
+and m1.sent_at < m2.sent_at
+and m2.message_type = 'trigger' and m1.message_type = 'bulk';
+
+
+-- \subsection*{Q7}
+
+select h25_messages.channel, count(1)
+from h25_messages,
+     h25_campaigns,
+     h25_purchase
+WHERE campaign_id = h25_campaigns.id
+  and campaign_type = message_type
+  and h25_messages.client_id = h25_purchase.client_id
+  and first_purchase_date >= h25_messages.date
+  and is_purchased = 't'
+GROUP BY h25_messages.channel;
+
+
+-- \subsection*{Q8}
+
+SELECT holiday, count(1) as NB
+from h25_messages, h25_holidays
+WHERE h25_holidays.date = sent_at::date
+GROUP BY h25_holidays.date;
+
+
+-- \subsection*{Q9}
+
+select email_provider, count(1)
+from h25_messages,
+     h25_campaigns,
+     h25_purchase
+WHERE campaign_id = h25_campaigns.id
+  and campaign_type = message_type
+  and h25_messages.client_id = h25_purchase.client_id
+  and first_purchase_date >= h25_messages.date
+  and is_purchased = 't'
+  and message_type = 'bulk'
+GROUP BY email_provider;
+
+
+-- \subsection*{Q10}
+
+select email_provider
+from h25_messages,
+     h25_campaigns,
+     h25_purchase
+WHERE campaign_id = h25_campaigns.id
+  and campaign_type = message_type
+  and h25_messages.client_id = h25_purchase.client_id
+  and first_purchase_date >= h25_messages.date
+  and is_purchased = 't'
+  and h25_messages.client_id in (select client_id from h25_purchase, h25_holidays
+                                    where date = first_purchase_date)
+GROUP BY email_provider
+order by count(1) desc limit 1;
+
+
+-- -- \subsection*{Q11}
+
+select h25_messages.client_id
+from h25_messages,
+     h25_campaigns,
+     h25_purchase,
+     h25_holidays
+WHERE campaign_id = h25_campaigns.id
+  and campaign_type = message_type
+  and h25_messages.client_id = h25_purchase.client_id
+  and first_purchase_date >= h25_messages.date
+  and holiday = 'Cyber Monday Sale'
+  and is_purchased = 't'
+  and message_type = 'transactional';
+
+
+-- -- \subsection*{Q12}
+select is_opened, is_clicked, count(1)
+from h25_messages,
+     h25_campaigns,
+     h25_purchase,
+     h25_holidays
+WHERE campaign_id = h25_campaigns.id
+  and campaign_type = message_type
+  and h25_messages.client_id = h25_purchase.client_id
+  and first_purchase_date >= h25_messages.date
+  and holiday = 'Cyber Monday Sale'
+  and campaign_id = 27
+  and email_provider != 'mail.ru'
+group by is_opened, is_clicked;

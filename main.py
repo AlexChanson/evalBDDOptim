@@ -3,7 +3,7 @@ from email import header
 from subprocess import PIPE, Popen
 import platform
 from time import sleep
-
+import re
 import utilities
 from random import shuffle as randomizeWorkload
 import psycopg2
@@ -13,7 +13,6 @@ PG_PORT = 35432
 PG_ADDRESS = "localhost"
 RUN_ANALYZE = True
 RUN_SOLUTION = True
-GET_DBSIZE= True
 
 
 if __name__ == '__main__':
@@ -67,8 +66,8 @@ if __name__ == '__main__':
             print("[PGSQL] analyze table:", table)
             utilities.analyze_table(table, connection)
 
-    print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
-    print(utilities.run_arbitrary("show jit;", connection))
+    #print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
+    #print(utilities.run_arbitrary("show jit;", connection))
 
     # run proposed optimization strategy
     if RUN_SOLUTION:
@@ -78,27 +77,19 @@ if __name__ == '__main__':
 
 
     # get DB size
-    if GET_DBSIZE:
-        dbsize=utilities.get_dbsize(connection)
-
+    dbsize = utilities.get_dbsize("dbUser", connection)
     print('[INFO] database size: ',dbsize)
 
     # run explain analyze
     overalcost = 0
     for q in queries:
         result= utilities.run_explain_analyze(q, connection)
-
-        fetch = False
-        for line in result.splitlines():
-            if line.startswith('-----'):
-                fetch = True
-                continue
-            if fetch:
-                fetch = False
-                t = line.split('..')
-                cost = t[1].split()[0]
-                print('[INFO] query ', q, ' : ', cost)
-                overalcost = overalcost + float(cost)
+        match = re.search(r'cost=\d+\.\d+\.\.(\d+\.\d+)', result[0][0])
+        if match:
+            cost = float(match.group(1))
+            overalcost = overalcost + cost
+        else:
+            print("[Workload] error getting query cost")
 
     print('[INFO] overal cost: ',overalcost)
 

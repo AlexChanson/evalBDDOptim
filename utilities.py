@@ -41,13 +41,12 @@ def run_optimisation(query, connection):
         print(f"Error running student optimization: {e}")
         return None
 
-def db_size(dbname, connection):
+def get_dbsize(dbname, connection):
     query='SELECT pg_size_pretty( pg_database_size(\''+dbname + '\') );'
     try:
         with connection.cursor() as cur:
-            result = cur.execute(query)
-            connection.commit()
-            return result
+            cur.execute(query)
+            return cur.fetchall()[0][0]
     except Exception as e:
         print(f"Error getting DB size: {e}")
         return None

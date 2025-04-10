@@ -86,6 +86,11 @@ def extract_table_name(create_table_sql):
 
 import psycopg2
 
+def import_csv_to_table_alt(table_name, csv_file_path, connection, delimiter=',', header=True):
+    query="copy " + table_name + " from \'" + csv_file_path + "\' with (format csv,header);"
+    execute_query(connection, query)
+
+
 def import_csv_to_table(table_name, csv_file_path, connection, delimiter=',', header=True):
     """
     Imports data from a CSV file into a PostgreSQL table using psycopg2.
@@ -233,4 +238,81 @@ def unzip_and_get_subfolder(zip_path):
         raise ValueError(f"Multiple subfolders found in extracted zip at {extract_dir}: {subdirs}")
 
 
+def execute_query(conn, query):
+    """
+    Executes a given SQL query using the established connection.
 
+    :param conn: Connection object
+    :param query: SQL query to be executed
+    :return: Query result
+    """
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        conn.commit()
+        #print("Query executed successfully.")
+
+        try:
+            result = cursor.fetchall()
+            return result
+        except psycopg2.ProgrammingError:
+            # If the query does not return any data (like an INSERT or UPDATE)
+            return None
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        return None
+    finally:
+        cursor.close()
+
+def dropAllIndex(conn, table):
+    query="select indexname from pg_catalog.pg_indexes where tablename = \'" + table + "\';"
+    res=execute_query(conn, query)
+    for r in res:
+        if not r[0].startswith('Key') and not r[0].endswith('_pkey'):
+            drop="drop index \"" + r[0] + "\";"
+            execute_query(conn, drop)
+
+def close_connection(conn):
+    """
+    Closes the database connection.
+
+    :param conn: Connection object
+    """
+    try:
+        conn.close()
+        print("Database connection closed.")
+    except Exception as e:
+        print(f"Error closing connection: {e}")
+
+
+def getTableNames(conn):
+    return execute_query(conn, "select tablename from pg_catalog.pg_tables where schemaname=\'public\';")
+
+def dropAllTables(conn):
+    tableames=getTableNames(conn)
+    for n in tableames:
+        ns=[str(i) for i in n]
+        execute_query(conn, "drop table \""+ns[0]+"\";")
+
+
+def dropDB(conn,dbname):
+    return execute_query(conn, "drop database " + dbname + ";")
+
+if __name__ == '__main__':
+    # establish database connection
+    connection_params = {
+        'dbname': 'hackathon',
+        'user': '',
+        'password': '',
+        'host': 'localhost',
+        'port': 5432
+    }
+    connection_ok = False
+    while not connection_ok:
+        try:
+            connection = psycopg2.connect(**connection_params)
+            connection_ok = True
+        except Exception as e:
+            print(f"Error connecting to PostgreSQL: {e}")
+
+    dropAllTables(connection)

@@ -28,13 +28,16 @@ class Config:
             self.port = int(config[USER]['port'])
 
             # psql
-            self.psql = int(config[USER]['psql'])
-
+            #self.psql = int(config[USER]['psql'])
+            self.version = config[USER]['version']
 
             # files
-            self.workload = config["Common"]['workload']
-            self.student = config["Common"]['student_setup']
-            self.analyse = config["Common"]['analyse']
-#            self.prefs = json.loads(config.get("Common", "preferred"))
+            self.workload = config[USER]['workload']
+            self.schema = config[USER]['schema']
+            self.student_create = config[USER]['student_create']
+            self.student_setup = config[USER]['student_setup']
+            self.path_to_zip = config[USER]['path_to_zip']
+            #            self.prefs = json.loads(config.get("Common", "preferred"))
+
 
             self.initialized = True

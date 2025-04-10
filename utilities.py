@@ -208,7 +208,7 @@ def explore_folder(root_path):
 
             if len(files) == 2:
                 file1_path, file2_path = files
-                results.append((prefix, file1_path, file2_path))
+                results.append((subfolder_path, prefix, file1_path, file2_path))
             else:
                 print(f"Skipping '{subfolder_name}' - found {len(files)} files instead of 2")
 

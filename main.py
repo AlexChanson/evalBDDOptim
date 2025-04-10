@@ -125,11 +125,10 @@ if __name__ == '__main__':
     queries = utilities.loadWorkload(config.workload)
     tables = utilities.loadWorkload(config.schema)
     table_names = [utilities.extract_table_name(t).lstrip("public.") for t in tables]
-    solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
-    solution_partition = utilities.loadWorkload("workload/student_create.txt")
-    student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
-    print(len(tables), 'tables to create :', table_names)
-    print(len(queries), 'queries to run.')
+    print('[INFO] ',len(tables), 'tables to create :', table_names)
+    print('[INFO] ',len(queries), 'queries to run.')
+
+
 
 
     # computes size and cost for no optimization
@@ -149,48 +148,53 @@ if __name__ == '__main__':
             data = utilities.explore_folder(subfolder_path)
             print(f"[INFO] Number of answers: {len(data)}")
             ZIPPED = False
-            #for prefix, file1, file2 in data:
-            #    print(f"Prefix: {prefix}")
-            #    print(f"File 1: {file1}")
-            #    print(f"File 2: {file2}")
-            #    print("------")
         except Exception as e:
             print(f"Error in extracting from zip: {e}")
 
+    # evaluation
+    for subfolder_path,prefix, file1, file2 in data:
+        print(f"[INFO] exploring directory: {subfolder_path}")
+        print(f"[INFO] for student: {prefix}")
+        #print(f"[INFO] create file : {file1}")
+        #print(f"[INFO] workload file: {file2}")
+    #    print("------")
+        #solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
+        #solution_partition = utilities.loadWorkload("workload/student_create.txt")
+        solution = utilities.split_sql_statements(open(subfolder_path+"/"+config.student_setup).read())
+        solution_partition = utilities.loadWorkload(subfolder_path+"/"+config.student_create)
+        student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
 
-    if VALIDATE_STATEMENTS:
-        for st in solution:
-            if utilities.is_valid_postgres_sql(st):
-                pass
-            else:
-                print("INVALID SQL ? :", st)
-                exit(0)
+        if VALIDATE_STATEMENTS:
+            for st in solution:
+                if utilities.is_valid_postgres_sql(st):
+                    pass
+                else:
+                    print("INVALID SQL ? :", st)
+                    exit(0)
 
+        # creating tables for the current solution
+        create_table(connection, solution_partition, tables, student_table_names)
 
+        # import data for the current solution
+        import_data(connection,student_table_names)
 
+        # run analyze for the current solution
+        if RUN_ANALYZE:
+            run_analyze(connection, table_names)
 
+        # run proposed optimization strategy
+        if RUN_SOLUTION:
+            run_optimisations(connection, solution)
 
-    # creating tables for the current solution
-    create_table(connection, solution_partition, tables, student_table_names)
+        # get DB size
+        dbsize = utilities.get_dbsize(config.dbname, connection)
+        print('[INFO] database size: ',dbsize)
 
-    # import data for the current solution
-    import_data(connection,student_table_names)
+        # run explain analyze
+        cost=compute_cost(connection,WORKLOAD_RUNS,queries)
 
-    # run analyze for the current solution
-    if RUN_ANALYZE:
-        run_analyze(connection, table_names)
+        # we are done cleanup
+        if CLEANUP:
+            cleanup(connection,DOCKER)
 
-    # run proposed optimization strategy
-    if RUN_SOLUTION:
-        run_optimisations(connection, solution)
-
-    # get DB size
-    dbsize = utilities.get_dbsize(config.dbname, connection)
-    print('[INFO] database size: ',dbsize)
-
-    # run explain analyze
-    cost=compute_cost(connection,WORKLOAD_RUNS,queries)
-
-    # we are done cleanup
-    if CLEANUP:
-        cleanup(connection,DOCKER)
+        #todo write to csv

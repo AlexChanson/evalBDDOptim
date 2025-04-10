@@ -17,6 +17,9 @@ RUN_SOLUTION = True
 WORKLOAD_RUNS = 5
 VALIDATE_STATEMENTS = True
 
+PATH_TO_ZIP = "/path/to/your/file.zip"  # Replace with your zip path
+
+
 if __name__ == '__main__':
     # load queries in memory
     queries = utilities.loadWorkload("workload/queries.txt")
@@ -27,6 +30,21 @@ if __name__ == '__main__':
     student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
     print(len(tables), 'tables to create :', table_names)
     print(len(queries), 'queries to run.')
+
+    # Extracting students answers
+    try:
+        subfolder_path = utilities.unzip_and_get_subfolder(PATH_TO_ZIP)
+        print(f"[UNZIP] Extracted subfolder path: {subfolder_path}")
+        data = utilities.explore_folder(subfolder_path)
+        print(f"[INFO] Number of answers: {len(data)}")
+        #for prefix, file1, file2 in data:
+        #    print(f"Prefix: {prefix}")
+        #    print(f"File 1: {file1}")
+        #    print(f"File 2: {file2}")
+        #    print("------")
+    except Exception as e:
+        print(f"Error in extracting from zip: {e}")
+
 
     if VALIDATE_STATEMENTS:
         for st in solution:

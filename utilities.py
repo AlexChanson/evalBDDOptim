@@ -233,21 +233,4 @@ def unzip_and_get_subfolder(zip_path):
         raise ValueError(f"Multiple subfolders found in extracted zip at {extract_dir}: {subdirs}")
 
 
-# Example usage
-if __name__ == "__main__":
-    zip_file_path = "/path/to/your/file.zip"  # Replace with your zip path
-    try:
-        subfolder_path = unzip_and_get_subfolder(zip_file_path)
-        print(f"Extracted subfolder path: {subfolder_path}")
-    except Exception as e:
-        print(f"Error: {e}")
 
-# Example usage:
-if __name__ == "__main__":
-    folder_path = "/path/to/your/folder"  # Replace with your actual path
-    data = explore_folder(folder_path)
-    for prefix, file1, file2 in data:
-        print(f"Prefix: {prefix}")
-        print(f"File 1: {file1}")
-        print(f"File 2: {file2}")
-        print("------")

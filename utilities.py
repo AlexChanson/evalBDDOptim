@@ -210,7 +210,7 @@ def explore_folder(root_path):
                 file1_path, file2_path = files
                 results.append((subfolder_path, prefix, file1_path, file2_path))
             else:
-                print(f"Skipping '{subfolder_name}' - found {len(files)} files instead of 2")
+                print(f"[INFO] Skipping '{subfolder_name}' - found {len(files)} files instead of 2")
 
     return results
 
@@ -230,12 +230,10 @@ def unzip_and_get_subfolder(zip_path):
     subdirs = [os.path.join(extract_dir, name) for name in os.listdir(extract_dir)
                if os.path.isdir(os.path.join(extract_dir, name))]
 
-    if len(subdirs) == 1:
-        return subdirs[0]
-    elif len(subdirs) == 0:
+    if len(subdirs) == 0:
         raise ValueError(f"No subfolders found in extracted zip at {extract_dir}")
     else:
-        raise ValueError(f"Multiple subfolders found in extracted zip at {extract_dir}: {subdirs}")
+        return extract_dir
 
 
 def execute_query(conn, query):

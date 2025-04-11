@@ -20,13 +20,15 @@ USER="PM"
 
 RUN_ANALYZE = False
 RUN_SOLUTION = True
-WORKLOAD_RUNS = 5
+WORKLOAD_RUNS = 1
 VALIDATE_STATEMENTS = False
 NO_OPTIM_RUN = True
-ZIPPED = False
+ZIPPED = True
 DOCKER = False
-CLEANUP = True
-
+CLEANUP = False
+EVALUATE = True
+IMPORT_STUDENT = False
+CREATE_STUDENT = False
 
 
 def create_table(connection, solution_partition, tables, student_table_names):
@@ -138,12 +140,13 @@ if __name__ == '__main__':
         dbsize_nooptim = utilities.get_dbsize(config.dbname, connection)
         print('[INFO] database size without optimization: ', dbsize_nooptim)
         cost = compute_cost(connection, WORKLOAD_RUNS, queries)
-        print('[INFO] overal cost without optimization: ', cost)
+        print('[INFO] this cost is without optimization: ')
 
+    data=[]
     # Extracting students answers
     if ZIPPED:
         try:
-            subfolder_path = utilities.unzip_and_get_subfolder(Config.path_to_zip)
+            subfolder_path = utilities.unzip_and_get_subfolder(config.path_to_zip)
             print(f"[UNZIP] Extracted subfolder path: {subfolder_path}")
             data = utilities.explore_folder(subfolder_path)
             print(f"[INFO] Number of answers: {len(data)}")
@@ -151,47 +154,51 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Error in extracting from zip: {e}")
 
+    #print(data)
     # evaluation
-    for subfolder_path,prefix, file1, file2 in data:
-        print(f"[INFO] exploring directory: {subfolder_path}")
-        print(f"[INFO] for student: {prefix}")
-        #print(f"[INFO] create file : {file1}")
-        #print(f"[INFO] workload file: {file2}")
-    #    print("------")
-        #solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
-        #solution_partition = utilities.loadWorkload("workload/student_create.txt")
-        solution = utilities.split_sql_statements(open(subfolder_path+"/"+config.student_setup).read())
-        solution_partition = utilities.loadWorkload(subfolder_path+"/"+config.student_create)
-        student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
+    if EVALUATE:
+        for subfolder_path,prefix, file1, file2 in data:
+            print(f"[INFO] exploring directory: {subfolder_path}")
+            print(f"[INFO] for student: {prefix}")
+            #print(f"[INFO] create file : {file1}")
+            #print(f"[INFO] workload file: {file2}")
+        #    print("------")
+            #solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
+            #solution_partition = utilities.loadWorkload("workload/student_create.txt")
+            solution = utilities.split_sql_statements(open(subfolder_path+"/"+config.student_setup).read())
+            solution_partition = utilities.loadWorkload(subfolder_path+"/"+config.student_create)
+            student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
 
-        if VALIDATE_STATEMENTS:
-            for st in solution:
-                if utilities.is_valid_postgres_sql(st):
-                    pass
-                else:
-                    print("INVALID SQL ? :", st)
-                    exit(0)
+            if VALIDATE_STATEMENTS:
+                for st in solution:
+                    if utilities.is_valid_postgres_sql(st):
+                        pass
+                    else:
+                        print("INVALID SQL ? :", st)
+                        exit(0)
 
-        # creating tables for the current solution
-        create_table(connection, solution_partition, tables, student_table_names)
+            # creating tables for the current solution
+            if CREATE_STUDENT:
+                create_table(connection, solution_partition, tables, student_table_names)
 
-        # import data for the current solution
-        import_data(connection,student_table_names)
+            # import data for the current solution
+            if IMPORT_STUDENT:
+                import_data(connection,student_table_names)
 
-        # run analyze for the current solution
-        if RUN_ANALYZE:
-            run_analyze(connection, table_names)
+            # run analyze for the current solution
+            if RUN_ANALYZE:
+                run_analyze(connection, table_names)
 
-        # run proposed optimization strategy
-        if RUN_SOLUTION:
-            run_optimisations(connection, solution)
+            # run proposed optimization strategy
+            if RUN_SOLUTION:
+                run_optimisations(connection, solution)
 
-        # get DB size
-        dbsize = utilities.get_dbsize(config.dbname, connection)
-        print('[INFO] database size: ',dbsize)
+            # get DB size
+            dbsize = utilities.get_dbsize(config.dbname, connection)
+            print('[INFO] database size: ',dbsize)
 
-        # run explain analyze
-        cost=compute_cost(connection,WORKLOAD_RUNS,queries)
+            # run explain analyze
+            cost=compute_cost(connection,WORKLOAD_RUNS,queries)
 
         # we are done cleanup
         if CLEANUP:

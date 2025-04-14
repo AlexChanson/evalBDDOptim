@@ -2,8 +2,10 @@ import os
 from email import header
 from subprocess import PIPE, Popen
 import platform
-from time import sleep
+from time import sleep, time, localtime, strftime
 import re
+import pandas as pd
+
 import utilities
 from random import shuffle as randomizeWorkload
 import psycopg2
@@ -90,6 +92,13 @@ def cleanup(connection, DOCKER):
         utilities.dropDB(connection, Config.dbname)
 
 if __name__ == '__main__':
+    current_time = localtime()
+    formatted_time = strftime("%d-%m-%y:%H:%M:%S", current_time)
+    fileResults = 'results/results_' + formatted_time +  '.csv'
+    column_names = ['name', 'db size','cost']
+
+    # Create an empty DataFrame with the specified columns
+    dfres = pd.DataFrame(columns=column_names)
 
     config = Config('configs/postgres.ini', USER)
 
@@ -141,6 +150,7 @@ if __name__ == '__main__':
         print('[INFO] database size without optimization: ', dbsize_nooptim)
         cost = compute_cost(connection, WORKLOAD_RUNS, queries)
         print('[INFO] this cost is without optimization: ')
+        dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost]
 
     data=[]
     # Extracting students answers
@@ -162,7 +172,7 @@ if __name__ == '__main__':
             print(f"[INFO] for student: {prefix}")
             #print(f"[INFO] create file : {file1}")
             #print(f"[INFO] workload file: {file2}")
-        #    print("------")
+            #    print("------")
             #solution = utilities.split_sql_statements(open("workload/student_setup.txt").read())
             #solution_partition = utilities.loadWorkload("workload/student_create.txt")
             solution = utilities.split_sql_statements(open(subfolder_path+"/"+config.student_setup).read())
@@ -199,6 +209,16 @@ if __name__ == '__main__':
 
             # run explain analyze
             cost=compute_cost(connection,WORKLOAD_RUNS,queries)
+
+            dfres.loc[len(dfres)] = [prefix, dbsize, cost]
+
+            #reset for next student
+            utilities.dropAllTables(connection)
+            create_table(connection, tables, [], [])
+            import_data(connection, table_names)
+            print('[INFO] reset done')
+
+        dfres.to_csv(fileResults, mode='a', header=False)
 
         # we are done cleanup
         if CLEANUP:

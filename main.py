@@ -223,4 +223,3 @@ if __name__ == '__main__':
         # we are done cleanup
         if CLEANUP:
             cleanup(connection,DOCKER)
-

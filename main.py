@@ -51,7 +51,7 @@ def import_data(connection,table_names):
     for table in table_names:
         print("[PGSQL] loading", table)
         #utilities.import_csv_to_table(table, "./data/" + table + ".csv", connection, delimiter=',', header=header)
-        utilities.import_csv_to_table_alt(table, "/Users/marcel/PycharmProjects/evalBDDOptim/data/" + table + ".csv", connection, delimiter=',', header=header)
+        utilities.import_csv_to_table_alt(table, config.path_to_data + table + ".csv", connection, delimiter=',', header=header)
 
 def run_analyze(connection,table_names):
         for table in table_names:
@@ -224,4 +224,3 @@ if __name__ == '__main__':
         if CLEANUP:
             cleanup(connection,DOCKER)
 
-        #todo write to csv

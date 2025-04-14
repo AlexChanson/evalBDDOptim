@@ -37,6 +37,7 @@ class Config:
             self.student_create = config[USER]['student_create']
             self.student_setup = config[USER]['student_setup']
             self.path_to_zip = config[USER]['path_to_zip']
+            self.path_to_data = config[USER]['path_to_data']
             #            self.prefs = json.loads(config.get("Common", "preferred"))
 
 

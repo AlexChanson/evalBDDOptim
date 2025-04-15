@@ -95,10 +95,11 @@ if __name__ == '__main__':
     current_time = localtime()
     formatted_time = strftime("%d-%m-%y:%H:%M:%S", current_time)
     fileResults = 'results/results_' + formatted_time +  '.csv'
-    column_names = ['name', 'db size','cost']
+    column_names = ['name', 'db size','cost', 'size increase', 'cost decrease','score']
 
     # Create an empty DataFrame with the specified columns
     dfres = pd.DataFrame(columns=column_names)
+    dfres.to_csv(fileResults)
 
     config = Config('configs/postgres.ini', USER)
 
@@ -147,10 +148,11 @@ if __name__ == '__main__':
         create_table(connection, tables, [], [])
         import_data(connection,table_names)
         dbsize_nooptim = utilities.get_dbsize(config.dbname, connection)
+        dbsize_nooptim = int(dbsize_nooptim.split(' ')[0])
         print('[INFO] database size without optimization: ', dbsize_nooptim)
-        cost = compute_cost(connection, WORKLOAD_RUNS, queries)
+        cost_nooptim = compute_cost(connection, WORKLOAD_RUNS, queries)
         print('[INFO] this cost is without optimization: ')
-        dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost]
+        dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost_nooptim, 1, 1,1]
 
     data=[]
     # Extracting students answers
@@ -205,12 +207,13 @@ if __name__ == '__main__':
 
             # get DB size
             dbsize = utilities.get_dbsize(config.dbname, connection)
+            dbsize = int(dbsize.split(' ')[0])
             print('[INFO] database size: ',dbsize)
 
             # run explain analyze
             cost=compute_cost(connection,WORKLOAD_RUNS,queries)
 
-            dfres.loc[len(dfres)] = [prefix, dbsize, cost]
+            dfres.loc[len(dfres)] = [prefix, dbsize, cost, 1+((dbsize - dbsize_nooptim)/dbsize_nooptim), 1+((cost_nooptim - cost)/cost_nooptim), cost/dbsize]
 
             #reset for next student
             utilities.dropAllTables(connection)

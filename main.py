@@ -212,8 +212,11 @@ if __name__ == '__main__':
 
             # run explain analyze
             cost=compute_cost(connection,WORKLOAD_RUNS,queries)
-
-            dfres.loc[len(dfres)] = [prefix, dbsize, cost, 1+((dbsize - dbsize_nooptim)/dbsize_nooptim), 1+((cost_nooptim - cost)/cost_nooptim), cost/dbsize]
+            sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
+            costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
+            score =  costdec/ sizeinc
+            dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
+            print('[INFO] score of ',prefix,' is: ',score)
 
             #reset for next student
             utilities.dropAllTables(connection)

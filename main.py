@@ -20,6 +20,7 @@ USER="PM"
 #PG_PORT = 5432
 #PG_ADDRESS = "localhost"
 
+INIT = True
 RUN_ANALYZE = False
 RUN_SOLUTION = True
 WORKLOAD_RUNS = 1
@@ -140,8 +141,8 @@ if __name__ == '__main__':
     print('[INFO] ',len(tables), 'tables to create :', table_names)
     print('[INFO] ',len(queries), 'queries to run.')
 
-
-
+    if INIT:
+        utilities.dropAllTables(connection)
 
     # computes size and cost for no optimization
     if NO_OPTIM_RUN:

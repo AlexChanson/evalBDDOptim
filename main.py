@@ -20,18 +20,19 @@ USER="PM"
 #PG_PORT = 5432
 #PG_ADDRESS = "localhost"
 
-INIT = True
-RUN_ANALYZE = False
-RUN_SOLUTION = True
-WORKLOAD_RUNS = 1
-VALIDATE_STATEMENTS = False
-NO_OPTIM_RUN = True
-ZIPPED = True
-DOCKER = False
-CLEANUP = False
-EVALUATE = True
-IMPORT_STUDENT = False
-CREATE_STUDENT = False
+INIT = True                     # to drop all tables
+RUN_ANALYZE = False             # to run analyze if not included in the proposed solution
+RUN_SOLUTION = True             # to run the proposed optimizations
+WORKLOAD_RUNS = 1               # number of runs of the workload
+VALIDATE_STATEMENTS = False     # to check if proposed statements are syntactically correct
+NO_OPTIM_RUN = True             # to compute cost and size without optimization
+ZIPPED = True                   # if proposed solutions are zipped
+DOCKER = False                  # if postgres is used containerized
+CLEANUP = False                 # to remove container (if containerized) or drop DB (otherwise)
+EVALUATE = True                 # to evaluate the proposed solution
+RECREATE = False                # to reset (recreate table and import) after each evaluation
+CREATE_STUDENT = True           # to drop all tables and run the create tables of the proposed solution
+IMPORT_STUDENT = True           # to import data after the proposed create tables
 
 
 def create_table(connection, solution_partition, tables, student_table_names):
@@ -192,11 +193,12 @@ if __name__ == '__main__':
 
             # creating tables for the current solution
             if CREATE_STUDENT:
+                utilities.dropAllTables(connection)
                 create_table(connection, solution_partition, tables, student_table_names)
 
             # import data for the current solution
             if IMPORT_STUDENT:
-                import_data(connection,student_table_names)
+                import_data(connection,table_names)
 
             # run analyze for the current solution
             if RUN_ANALYZE:
@@ -215,15 +217,16 @@ if __name__ == '__main__':
             cost=compute_cost(connection,WORKLOAD_RUNS,queries)
             sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
             costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
-            score =  costdec/ sizeinc
+            score =  costdec / sizeinc
             dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
             print('[INFO] score of ',prefix,' is: ',score)
 
             #reset for next student
-            utilities.dropAllTables(connection)
-            create_table(connection, tables, [], [])
-            import_data(connection, table_names)
-            print('[INFO] reset done')
+            if RECREATE:
+                utilities.dropAllTables(connection)
+                create_table(connection, tables, [], [])
+                import_data(connection, table_names)
+                print('[INFO] reset done')
 
         dfres.to_csv(fileResults, mode='a', header=False)
 

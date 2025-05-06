@@ -1,4 +1,4 @@
-import os
+import sys
 from email import header
 from subprocess import PIPE, Popen
 import platform
@@ -21,10 +21,10 @@ USER="PM"
 #PG_ADDRESS = "localhost"
 
 INIT = True                     # to drop all tables
-RUN_ANALYZE = False             # to run analyze if not included in the proposed solution
+RUN_ANALYZE = True              # to run analyze if not included in the proposed solution
 RUN_SOLUTION = True             # to run the proposed optimizations
 WORKLOAD_RUNS = 1               # number of runs of the workload
-VALIDATE_STATEMENTS = False     # to check if proposed statements are syntactically correct
+VALIDATE_STATEMENTS = True      # to check if proposed statements are syntactically correct
 NO_OPTIM_RUN = True             # to compute cost and size without optimization
 ZIPPED = True                   # if proposed solutions are zipped
 DOCKER = False                  # if postgres is used containerized
@@ -33,6 +33,7 @@ EVALUATE = True                 # to evaluate the proposed solution
 RECREATE = False                # to reset (recreate table and import) after each evaluation
 CREATE_STUDENT = True           # to drop all tables and run the create tables of the proposed solution
 IMPORT_STUDENT = True           # to import data after the proposed create tables
+JUST_RESET = False              # to drop tables and recreate with import, then exit
 
 
 def create_table(connection, solution_partition, tables, student_table_names):
@@ -66,7 +67,9 @@ def run_analyze(connection,table_names):
 def run_optimisations(connection,solution):
         for statement in solution:
             print("[PGSQL] running:", statement)
-            utilities.run_optimisation(statement, connection)
+            res=utilities.run_optimisation(statement, connection)
+        #return res
+
 
 def compute_cost(connection,WORKLOAD_RUNS,queries):
     overalcost = 0
@@ -133,7 +136,8 @@ if __name__ == '__main__':
             print(f"Error connecting to PostgreSQL: {e}")
             sleep(5)
 
-
+    connection.autocommit = True
+    print("[PGSQL] Autocommit is set to:", connection.autocommit)
 
     # load queries in memory
     queries = utilities.loadWorkload(config.workload)
@@ -141,6 +145,13 @@ if __name__ == '__main__':
     table_names = [utilities.extract_table_name(t).lstrip("public.") for t in tables]
     print('[INFO] ',len(tables), 'tables to create :', table_names)
     print('[INFO] ',len(queries), 'queries to run.')
+
+    if JUST_RESET:
+        utilities.dropAllTables(connection)
+        create_table(connection, tables, [], [])
+        import_data(connection, table_names)
+        print('[INFO] reset done')
+        sys.exit()
 
     if INIT:
         utilities.dropAllTables(connection)
@@ -181,52 +192,72 @@ if __name__ == '__main__':
             #solution_partition = utilities.loadWorkload("workload/student_create.txt")
             solution = utilities.split_sql_statements(open(subfolder_path+"/"+config.student_setup).read())
             solution_partition = utilities.loadWorkload(subfolder_path+"/"+config.student_create)
-            student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
+            #student_table_names = [utilities.extract_table_name(t).lstrip("public.") for t in solution_partition]
+            student_table_names = []
+            for  t in solution_partition:
+                if utilities.extract_table_name(t) is not None:
+                    student_table_names.append(utilities.extract_table_name(t).lstrip("public."))
 
             if VALIDATE_STATEMENTS:
+                problem_detected = False
                 for st in solution:
                     if utilities.is_valid_postgres_sql(st):
                         pass
                     else:
-                        print("INVALID SQL ? :", st)
-                        exit(0)
+                        print("[INVALID SQL] for student: ", prefix)
+                        print("[INVALID SQL] :", st)
+                        print('[INVALID SQL] Moving on to the next student')
+                        problem_detected = True
+                        break
+                        #exit(0)
 
-            # creating tables for the current solution
-            if CREATE_STUDENT:
-                utilities.dropAllTables(connection)
-                create_table(connection, solution_partition, tables, student_table_names)
+            if not problem_detected:
+                # creating tables for the current solution
+                if CREATE_STUDENT:
+                    utilities.dropAllTables(connection)
+                    create_table(connection, solution_partition, tables, student_table_names)
 
-            # import data for the current solution
-            if IMPORT_STUDENT:
-                import_data(connection,table_names)
+                # import data for the current solution
+                if IMPORT_STUDENT:
+                    import_data(connection,table_names)
 
-            # run analyze for the current solution
-            if RUN_ANALYZE:
-                run_analyze(connection, table_names)
+                # run analyze for the current solution
+                if RUN_ANALYZE:
+                    run_analyze(connection, table_names)
 
-            # run proposed optimization strategy
-            if RUN_SOLUTION:
-                run_optimisations(connection, solution)
+                # run proposed optimization strategy
+                if RUN_SOLUTION:
+                    problem_detected = False
+                    try:
+                        res=run_optimisations(connection, solution)
+                    except Exception as e:
+                        print(f"Error running student optimization: {e}")
+                        print('Moving on to the next student')
+                        utilities.dropAllTables(connection)
+                        problem_detected = True
 
-            # get DB size
-            dbsize = utilities.get_dbsize(config.dbname, connection)
-            dbsize = int(dbsize.split(' ')[0])
-            print('[INFO] database size: ',dbsize)
 
-            # run explain analyze
-            cost=compute_cost(connection,WORKLOAD_RUNS,queries)
-            sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
-            costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
-            score =  costdec / sizeinc
-            dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
-            print('[INFO] score of ',prefix,' is: ',score)
+                if not problem_detected:
+                    # get DB size
+                    dbsize = utilities.get_dbsize(config.dbname, connection)
+                    dbsize = int(dbsize.split(' ')[0])
+                    print('[INFO] database size: ',dbsize)
 
-            #reset for next student
-            if RECREATE:
-                utilities.dropAllTables(connection)
-                create_table(connection, tables, [], [])
-                import_data(connection, table_names)
-                print('[INFO] reset done')
+                    # run explain analyze
+                    cost=compute_cost(connection,WORKLOAD_RUNS,queries)
+                    sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
+                    costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
+                    score =  costdec / sizeinc
+                    dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
+                    #dfres.to_csv(fileResults, mode='a', header=False)
+                    print('[INFO] score of ',prefix,' is: ',score)
+
+                    #reset for next student
+                    if RECREATE:
+                        utilities.dropAllTables(connection)
+                        create_table(connection, tables, [], [])
+                        import_data(connection, table_names)
+                        print('[INFO] reset done')
 
         dfres.to_csv(fileResults, mode='a', header=False)
 

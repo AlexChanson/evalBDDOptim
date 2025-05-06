@@ -34,7 +34,7 @@ def run_create(query, connection):
         print(f"Error running CREATE: {e}")
         return None
 
-
+"""
 def run_optimisation(query, connection):
     try:
         with connection.cursor() as cur:
@@ -44,6 +44,13 @@ def run_optimisation(query, connection):
     except Exception as e:
         print(f"Error running student optimization: {e}")
         return None
+"""
+
+def run_optimisation(query, connection):
+    with connection.cursor() as cur:
+        result = cur.execute(query)
+        connection.commit()
+        return result
 
 def get_dbsize(dbname, connection):
     query='SELECT pg_size_pretty( pg_database_size(\''+dbname + '\') );'
@@ -288,9 +295,11 @@ def getTableNames(conn):
 
 def dropAllTables(conn):
     tableames=getTableNames(conn)
-    for n in tableames:
-        ns=[str(i) for i in n]
-        execute_query(conn, "drop table \""+ns[0]+"\";")
+    if tableames is not None:
+        for n in tableames:
+            ns=[str(i) for i in n]
+            execute_query(conn, "drop table \""+ns[0]+"\" cascade;")
+            conn.commit()
 
 
 def dropDB(conn,dbname):

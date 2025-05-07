@@ -34,6 +34,7 @@ RECREATE = False                # to reset (recreate table and import) after eac
 CREATE_STUDENT = True           # to drop all tables and run the create tables of the proposed solution
 IMPORT_STUDENT = True           # to import data after the proposed create tables
 JUST_RESET = False              # to drop tables and recreate with import, then exit
+EXPLAIN_ANALYZE = False         # if we want to execute the queries
 
 
 def create_table(connection, solution_partition, tables, student_table_names):
@@ -71,14 +72,17 @@ def run_optimisations(connection,solution):
         #return res
 
 
-def compute_cost(connection,WORKLOAD_RUNS,queries):
+def compute_cost(connection,WORKLOAD_RUNS,queries,EXPLAIN_ANALYZE = False):
     overalcost = 0
 
     for i in range(WORKLOAD_RUNS):
         print("[INFO] RUN", i + 1, "out of", WORKLOAD_RUNS)
-        randomizeWorkload(queries)
+        #randomizeWorkload(queries)
         for q in queries:
-            result = utilities.run_explain_analyze(q, connection)
+            if EXPLAIN_ANALYZE:
+                result = utilities.run_explain_analyze(q, connection)
+            else:
+                result = utilities.run_explain(q, connection)
             match = re.search(r'cost=\d+\.\d+\.\.(\d+\.\d+)', result[0][0])
             if match:
                 cost = float(match.group(1))
@@ -161,13 +165,14 @@ if __name__ == '__main__':
 
     # computes size and cost for no optimization
     if NO_OPTIM_RUN:
+        print("no optimisation run")
         create_table(connection, tables, [], [])
         import_data(connection,table_names)
         run_analyze(connection, table_names)
         dbsize_nooptim = utilities.get_dbsize(config.dbname, connection)
         dbsize_nooptim = int(dbsize_nooptim.split(' ')[0])
         print('[INFO] database size without optimization: ', dbsize_nooptim)
-        cost_nooptim = compute_cost(connection, WORKLOAD_RUNS, queries)
+        cost_nooptim = compute_cost(connection, WORKLOAD_RUNS, queries,EXPLAIN_ANALYZE)
         print('[INFO] this cost is without optimization: ')
         dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost_nooptim, 1, 1,1]
 
@@ -250,12 +255,12 @@ if __name__ == '__main__':
                     print('[INFO] database size: ',dbsize)
 
                     # run explain analyze
-                    cost=compute_cost(connection,WORKLOAD_RUNS,queries)
+                    cost=compute_cost(connection,WORKLOAD_RUNS,queries,EXPLAIN_ANALYZE)
                     sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
                     costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
                     score =  costdec / sizeinc
                     dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
-                    #dfres.to_csv(fileResults, mode='a', header=False)
+                    dfres.to_csv(fileResults, mode='a', header=False)
                     print('[INFO] score of ',prefix,' is: ',score)
 
                     #reset for next student

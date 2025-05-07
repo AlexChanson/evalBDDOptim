@@ -13,6 +13,17 @@ def loadWorkload(path):
                 data += " " + line.strip()
     return data.split(";")[:-1]
 
+def run_explain(query, connection):
+    explain_query = f"EXPLAIN {query}"
+    try:
+        with connection.cursor() as cur:
+            cur.execute(explain_query)
+            result = cur.fetchall()
+            return result
+    except Exception as e:
+        print(f"Error running EXPLAIN : {e}")
+        return None
+
 def run_explain_analyze(query, connection):
     explain_query = f"EXPLAIN ANALYZE {query}"
     try:
@@ -322,6 +333,7 @@ def dropAllTables(conn):
     if tableames is not None:
         for n in tableames:
             ns=[str(i) for i in n]
+            print("executing: ","drop table \""+ns[0]+"\" cascade;")
             execute_query(conn, "drop table \""+ns[0]+"\" cascade;")
             conn.commit()
 

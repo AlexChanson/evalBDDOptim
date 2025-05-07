@@ -136,6 +136,30 @@ def analyze_table(table_name, connection):
     except Exception as e:
         print(f"Analysis error fo '{table_name}': {e}")
 
+def vacuum(connection):
+    try:
+        with connection.cursor() as cur:
+            sql = f"""
+            vacuum;
+            """
+            cur.execute(sql)
+            print(f"Vacuum successfully executed.")
+    except Exception as e:
+        print(f"Vacuum error")
+
+def default_stat(connection):
+            try:
+                with connection.cursor() as cur:
+                    sql = f"""
+                    SET default_statistics_target = 10000;
+                    """
+                    cur.execute(sql)
+                    print(f"SET default_statistics_target")
+            except Exception as e:
+                print(f"SET error")
+
+
+
 def run_arbitrary(sql, connection):
     try:
         with connection.cursor() as cur:

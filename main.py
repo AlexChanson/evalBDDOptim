@@ -24,7 +24,7 @@ INIT = True                     # to drop all tables
 RUN_ANALYZE = True              # to run analyze if not included in the proposed solution
 RUN_SOLUTION = True             # to run the proposed optimizations
 WORKLOAD_RUNS = 1               # number of runs of the workload
-VALIDATE_STATEMENTS = True      # to check if proposed statements are syntactically correct
+VALIDATE_STATEMENTS = False     # to check if proposed statements are syntactically correct
 NO_OPTIM_RUN = True             # to compute cost and size without optimization
 ZIPPED = True                   # if proposed solutions are zipped
 DOCKER = False                  # if postgres is used containerized
@@ -136,8 +136,11 @@ if __name__ == '__main__':
             print(f"Error connecting to PostgreSQL: {e}")
             sleep(5)
 
+    # to process every statement independently
     connection.autocommit = True
     print("[PGSQL] Autocommit is set to:", connection.autocommit)
+    # max sample size for analyze
+    utilities.default_stat(connection)
 
     # load queries in memory
     queries = utilities.loadWorkload(config.workload)
@@ -160,6 +163,7 @@ if __name__ == '__main__':
     if NO_OPTIM_RUN:
         create_table(connection, tables, [], [])
         import_data(connection,table_names)
+        run_analyze(connection, table_names)
         dbsize_nooptim = utilities.get_dbsize(config.dbname, connection)
         dbsize_nooptim = int(dbsize_nooptim.split(' ')[0])
         print('[INFO] database size without optimization: ', dbsize_nooptim)
@@ -179,7 +183,7 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Error in extracting from zip: {e}")
 
-    #print(data)
+    list_problems = []
     # evaluation
     if EVALUATE:
         for subfolder_path,prefix, file1, file2 in data:
@@ -198,8 +202,8 @@ if __name__ == '__main__':
                 if utilities.extract_table_name(t) is not None:
                     student_table_names.append(utilities.extract_table_name(t).lstrip("public."))
 
+            problem_detected = False
             if VALIDATE_STATEMENTS:
-                problem_detected = False
                 for st in solution:
                     if utilities.is_valid_postgres_sql(st):
                         pass
@@ -215,6 +219,7 @@ if __name__ == '__main__':
                 # creating tables for the current solution
                 if CREATE_STUDENT:
                     utilities.dropAllTables(connection)
+                    utilities.vacuum(connection)
                     create_table(connection, solution_partition, tables, student_table_names)
 
                 # import data for the current solution
@@ -232,9 +237,10 @@ if __name__ == '__main__':
                         res=run_optimisations(connection, solution)
                     except Exception as e:
                         print(f"Error running student optimization: {e}")
-                        print('Moving on to the next student')
-                        utilities.dropAllTables(connection)
-                        problem_detected = True
+                        list_problems.append(prefix)
+                        #print('Moving on to the next student')
+                        #utilities.dropAllTables(connection)
+                        #problem_detected = True
 
 
                 if not problem_detected:
@@ -261,6 +267,7 @@ if __name__ == '__main__':
 
         dfres.to_csv(fileResults, mode='a', header=False)
 
+        print('[INFO] Solutions with problems: ',list_problems)
         # we are done cleanup
         if CLEANUP:
             cleanup(connection,DOCKER)

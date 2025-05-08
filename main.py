@@ -260,7 +260,7 @@ if __name__ == '__main__':
                     costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
                     score =  costdec / sizeinc
                     dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
-                    dfres.to_csv(fileResults, mode='a', header=False)
+                    dfres.to_csv(fileResults, mode='w', header=False)
                     print('[INFO] score of ',prefix,' is: ',score)
 
                     #reset for next student
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                         import_data(connection, table_names)
                         print('[INFO] reset done')
 
-        dfres.to_csv(fileResults, mode='a', header=False)
+        dfres.to_csv(fileResults, mode='w', header=False)
 
         print('[INFO] Solutions with problems: ',list_problems)
         # we are done cleanup

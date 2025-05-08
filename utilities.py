@@ -213,6 +213,12 @@ def split_sql_statements(sql_script: str):
 
     return statements
 
+def check_statement(statement):
+    if statement.lower().lstrip().startswith("cluster") or statement.lower().lstrip().startswith("create index"):
+        return 1
+    else:
+        return 0
+
 def is_valid_postgres_sql(statement: str) -> bool:
     # doesn't seem to handle cluster properly
     if statement.lower().lstrip().startswith("cluster"):

@@ -65,11 +65,14 @@ def run_analyze(connection,table_names):
     #print(utilities.run_explain_analyze("SELECT * from h25_messages;", connection))
     #print(utilities.run_arbitrary("show jit;", connection))
 
+# returns the number of create index or cluster commands
 def run_optimisations(connection,solution):
+        count=0
         for statement in solution:
             print("[PGSQL] running:", statement)
             res=utilities.run_optimisation(statement, connection)
-        #return res
+            count=count+utilities.check_statement(statement)
+        return count
 
 
 def compute_cost(connection,WORKLOAD_RUNS,queries,EXPLAIN_ANALYZE = False):
@@ -104,7 +107,7 @@ if __name__ == '__main__':
     current_time = localtime()
     formatted_time = strftime("%d-%m-%y:%H:%M:%S", current_time)
     fileResults = 'results/results_' + formatted_time +  '.csv'
-    column_names = ['name', 'db size','cost', 'size increase', 'cost decrease','score']
+    column_names = ['name', 'db size','cost', 'size increase', 'cost decrease','score','nb opt']
 
     # Create an empty DataFrame with the specified columns
     dfres = pd.DataFrame(columns=column_names)
@@ -174,7 +177,7 @@ if __name__ == '__main__':
         print('[INFO] database size without optimization: ', dbsize_nooptim)
         cost_nooptim = compute_cost(connection, WORKLOAD_RUNS, queries,EXPLAIN_ANALYZE)
         print('[INFO] this cost is without optimization: ')
-        dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost_nooptim, 1, 1,1]
+        dfres.loc[len(dfres)] = ["no optimisation", dbsize_nooptim, cost_nooptim, 1, 1,1,0]
 
     data=[]
     # Extracting students answers
@@ -236,13 +239,15 @@ if __name__ == '__main__':
                     run_analyze(connection, table_names)
 
                 # run proposed optimization strategy
+                nb_opt=0
                 if RUN_SOLUTION:
                     problem_detected = False
                     try:
-                        res=run_optimisations(connection, solution)
+                        nb_opt=run_optimisations(connection, solution)
                     except Exception as e:
                         print(f"Error running student optimization: {e}")
                         list_problems.append(prefix)
+                        nb_opt=nb_opt-1
                         #print('Moving on to the next student')
                         #utilities.dropAllTables(connection)
                         #problem_detected = True
@@ -259,7 +264,7 @@ if __name__ == '__main__':
                     sizeinc = 1 + ((dbsize - dbsize_nooptim) / dbsize_nooptim)
                     costdec =  1 + ((cost_nooptim - cost) / cost_nooptim)
                     score =  costdec / sizeinc
-                    dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score]
+                    dfres.loc[len(dfres)] = [prefix, dbsize, cost, sizeinc, costdec, score,nb_opt]
                     dfres.to_csv(fileResults, mode='w', header=False)
                     print('[INFO] score of ',prefix,' is: ',score)
 

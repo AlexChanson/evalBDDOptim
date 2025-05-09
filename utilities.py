@@ -339,7 +339,7 @@ def dropAllTables(conn):
     if tableames is not None:
         for n in tableames:
             ns=[str(i) for i in n]
-            print("executing: ","drop table \""+ns[0]+"\" cascade;")
+            print("[PGSQL] Executing: ","drop table \""+ns[0]+"\" cascade;")
             execute_query(conn, "drop table \""+ns[0]+"\" cascade;")
             conn.commit()
 

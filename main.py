@@ -234,9 +234,7 @@ if __name__ == '__main__':
                 if IMPORT_STUDENT:
                     import_data(connection,table_names)
 
-                # run analyze for the current solution
-                if RUN_ANALYZE:
-                    run_analyze(connection, table_names)
+
 
                 # run proposed optimization strategy
                 nb_opt=0
@@ -254,6 +252,11 @@ if __name__ == '__main__':
 
 
                 if not problem_detected:
+
+                    # run analyze for the current solution
+                    if RUN_ANALYZE:
+                        run_analyze(connection, table_names)
+
                     # get DB size
                     dbsize = utilities.get_dbsize(config.dbname, connection)
                     dbsize = int(dbsize.split(' ')[0])
